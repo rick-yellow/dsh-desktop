@@ -14,7 +14,7 @@ This reference maps the application composition, startup lifecycle, ownership bo
 | [`src/state.rs`](../src/state.rs) | Store lifecycle phase, launch metadata, and bounded logs shared by worker and UI threads. |
 | [`src/protocol.rs`](../src/protocol.rs) | Serve the internal `dsh-shell://` status and control protocol. |
 | [`src/pages.rs`](../src/pages.rs) | Provide embedded startup and failure HTML, CSS, and JavaScript. |
-| [`src/webview.js`](../src/webview.js) | Add desktop-only WebView behavior: right-click selected chat text to create ChatGPT-style composer annotations and render them in sent messages. |
+| [`src/webview.js`](../src/webview.js) | Add desktop-only WebView behavior: right-click selected chat text to create ChatGPT-style composer annotations, underline numbered source excerpts, and render them in sent messages. |
 | [`src/logger.rs`](../src/logger.rs) | Write diagnostic output to stderr and the application log file. |
 
 ## Startup Lifecycle
