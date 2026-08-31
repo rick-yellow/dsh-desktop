@@ -13,3 +13,7 @@ Each record contains these sections:
 5. `Verification` — exact automated checks or observable behavior that protects the decision.
 
 Decision records explain why the current mechanism exists. Keep task plans, acceptance checklists, incident chronology, and code walkthroughs in their owning systems rather than this directory.
+
+## Records
+
+- [Native window theme synchronization](2026-09-01-native-window-theme-sync.md)

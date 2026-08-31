@@ -6,7 +6,7 @@ Set-StrictMode -Version Latest
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $packageRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot 'target\package'))
-$distRoot = [System.IO.Path]::GetFullPath((Join-Path $packageRoot 'dsh-desktop-rust'))
+$distRoot = [System.IO.Path]::GetFullPath((Join-Path $packageRoot 'DSH-Desktop'))
 $runtimeRoot = Join-Path $distRoot 'runtime'
 
 if (-not $distRoot.StartsWith($packageRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -52,7 +52,7 @@ try {
         Copy-Item -LiteralPath $nodeLicense -Destination (Join-Path $runtimeRoot 'NODE-LICENSE')
     }
 
-    Copy-Item -LiteralPath 'target\release\dsh-desktop-rust.exe' -Destination $distRoot
+    Copy-Item -LiteralPath 'target\release\dsh-desktop.exe' -Destination $distRoot
     Copy-Item -LiteralPath 'README.md' -Destination $distRoot
     Copy-Item -LiteralPath 'LICENSE' -Destination $distRoot
 

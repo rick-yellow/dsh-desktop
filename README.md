@@ -1,12 +1,12 @@
-# DeepSeek Harness — Rust Desktop Wrapper
+# DSH-Desktop
 
-A native Windows shell for the official [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) Web UI. The Rust process starts the pinned `@deepseek-ai/dsh` package, waits for its loopback URL, and hosts the UI in a `wry` WebView inside a `tao` window.
+A native Windows shell for the official [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) Web UI. DSH-Desktop starts the pinned `@deepseek-ai/dsh` package, waits for its loopback URL, and hosts the UI in a native window.
 
 The application executes local DSH files directly. It does not depend on another Desktop application, invoke `npx`, or contact a package registry at runtime.
 
 ```text
 ┌───────────────────────────────────────────────┐
-│ dsh-desktop-rust.exe                         │
+│ dsh-desktop.exe                              │
 │  └─ tao window + wry WebView                 │
 └───────────────────────┬───────────────────────┘
                         │ spawn / monitor / stop
@@ -43,7 +43,7 @@ See [Development](docs/development.md) for prerequisites, upstream-checkout test
 .\scripts\package.ps1
 ```
 
-The script creates `target/package/dsh-desktop-rust/` with the optimized Rust executable, Node.js, and a copied production dependency tree. Distribute the complete directory so `runtime/` remains beside the executable.
+The script creates `target/package/DSH-Desktop/` with the optimized executable, Node.js, and a copied production dependency tree. Distribute the complete directory so `runtime/` remains beside the executable.
 
 Follow [Package for Windows](docs/cookbook/package-windows.md) for verification and distribution steps.
 

@@ -9,6 +9,7 @@
     "docs/reference/cli.md": 700,
     "docs/cookbook/package-windows.md": 700,
     "docs/decisions/README.md": 350,
+    "docs/decisions/2026-09-01-native-window-theme-sync.md": 550,
     "docs/postmortem/README.md": 350
   }
 }

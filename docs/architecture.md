@@ -4,7 +4,7 @@ This reference maps the application composition, startup lifecycle, ownership bo
 
 ## Composition
 
-`dsh-desktop-rust` is a single Rust 2024 executable that embeds a native `tao` window and a `wry` WebView while running the official `@deepseek-ai/dsh` web CLI as a child process.
+DSH-Desktop is a single Rust 2024 executable that embeds a native `tao` window and a `wry` WebView while running the official `@deepseek-ai/dsh` web CLI as a child process.
 
 | Component | Responsibility |
 | --- | --- |
@@ -12,10 +12,12 @@ This reference maps the application composition, startup lifecycle, ownership bo
 | [`src/runtime.rs`](../src/runtime.rs) | Resolve the packaged, project-local, or explicitly selected DSH JavaScript entry and Node executable. |
 | [`src/harness.rs`](../src/harness.rs) | Spawn DSH, detect readiness and failures, stream output, and terminate the process tree. |
 | [`src/state.rs`](../src/state.rs) | Store lifecycle phase, launch metadata, and bounded logs shared by worker and UI threads. |
-| [`src/protocol.rs`](../src/protocol.rs) | Serve the internal `dsh-shell://` status and control protocol. |
-| [`src/pages.rs`](../src/pages.rs) | Provide embedded startup and failure HTML, CSS, and JavaScript. |
-| [`src/webview.js`](../src/webview.js) | Add desktop-only WebView behavior: right-click selected chat text to create ChatGPT-style composer annotations and render them in sent messages. |
-| [`src/logger.rs`](../src/logger.rs) | Write diagnostic output to stderr and the application log file. |
+| [`src/protocol.rs`](../src/protocol.rs) | Serve the internal `dsh-shell://` status and control protocol, including log-export requests. |
+| [`src/pages.rs`](../src/pages.rs) | Provide embedded startup and failure HTML, CSS, and JavaScript, including the log-export button. |
+| [`src/webview.js`](../src/webview.js) | Add desktop-only page behavior, including composer annotations and native-window theme reporting. |
+| [`src/logger.rs`](../src/logger.rs) | Write diagnostic output to stderr and the application log file, and export that file on request. |
+| [`assets/dsh-desktop.svg`](../assets/dsh-desktop.svg) | Define the original adaptive application mark used to generate light and dark window assets. |
+| [`build.rs`](../build.rs) | Compile the default Windows application icon into the executable. |
 
 ## Startup Lifecycle
 
@@ -40,6 +42,10 @@ The exact discovery order and supported directory layouts belong to the [CLI ref
 The child server binds to `127.0.0.1`. The authenticated URL emitted by DSH is forwarded unchanged to the WebView, and the wrapper does not persist its token separately.
 
 `DSH_HOME` owns Harness state and credentials. Tests and manual experiments use an isolated home rather than a user's primary profile. The selected workspace becomes the child process working directory and must already exist.
+
+## Window Theme Synchronization
+
+DSH owns the Light, Dark, and System appearance preference. The injected WebView script observes the resolved `color-scheme` and `data-ds-dark-theme` state, sends an exact light or dark IPC message, and the event loop applies the matching Tao window theme, title-bar icon, and Windows taskbar icon. The wrapper does not persist or override the DSH preference; the [decision record](decisions/2026-09-01-native-window-theme-sync.md) owns the rationale and trade-offs.
 
 ## Extension Seams
 

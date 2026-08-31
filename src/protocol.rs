@@ -12,11 +12,27 @@ use wry::http::{
     header::{ACCESS_CONTROL_ALLOW_ORIGIN, CACHE_CONTROL, CONTENT_TYPE},
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WindowTheme {
+    Light,
+    Dark,
+}
+
 pub enum AppEvent {
     Ready { url: String },
     Failed { reason: String },
+    ThemeChanged { theme: WindowTheme },
     RestartRequested,
+    ExportLogRequested,
     QuitRequested,
+}
+
+pub fn parse_theme_message(message: &str) -> Option<WindowTheme> {
+    match message {
+        "theme:light" => Some(WindowTheme::Light),
+        "theme:dark" => Some(WindowTheme::Dark),
+        _ => None,
+    }
 }
 
 #[derive(Serialize)]
@@ -124,6 +140,13 @@ pub fn handler(
                 let _ = proxy.send_event(AppEvent::RestartRequested);
                 json_response(200, br#"{"ok":true}"#.to_vec())
             }
+            "/api/export-log" => {
+                // The dialog and file write happen on the main thread; this
+                // endpoint only wakes it. The outcome is reported back through
+                // the shared log ring buffer.
+                let _ = proxy.send_event(AppEvent::ExportLogRequested);
+                json_response(200, br#"{"ok":true}"#.to_vec())
+            }
             "/api/quit" => {
                 let _ = proxy.send_event(AppEvent::QuitRequested);
                 json_response(200, br#"{"ok":true}"#.to_vec())
@@ -163,5 +186,18 @@ mod tests {
     #[test]
     fn percent_decode_empty_input() {
         assert_eq!(percent_decode(""), "");
+    }
+
+    #[test]
+    fn theme_message_accepts_exact_supported_values() {
+        assert_eq!(parse_theme_message("theme:light"), Some(WindowTheme::Light));
+        assert_eq!(parse_theme_message("theme:dark"), Some(WindowTheme::Dark));
+    }
+
+    #[test]
+    fn theme_message_rejects_unknown_or_extended_values() {
+        assert_eq!(parse_theme_message("theme:system"), None);
+        assert_eq!(parse_theme_message("theme:dark:extra"), None);
+        assert_eq!(parse_theme_message("dark"), None);
     }
 }

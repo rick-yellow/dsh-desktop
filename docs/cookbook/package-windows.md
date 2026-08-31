@@ -19,7 +19,7 @@ The script performs a release Cargo build, creates a production-only installatio
 Verify that the command reports this output root:
 
 ```text
-target\package\dsh-desktop-rust
+target\package\DSH-Desktop
 ```
 
 ## 2. Verify the Embedded Runtime
@@ -27,8 +27,8 @@ target\package\dsh-desktop-rust
 Run the packaged DSH entry with the packaged Node executable:
 
 ```powershell
-.\target\package\dsh-desktop-rust\runtime\node.exe `
-  .\target\package\dsh-desktop-rust\runtime\node_modules\@deepseek-ai\dsh\lib\bin.js `
+.\target\package\DSH-Desktop\runtime\node.exe `
+  .\target\package\DSH-Desktop\runtime\node_modules\@deepseek-ai\dsh\lib\bin.js `
   --version
 ```
 
@@ -39,17 +39,17 @@ The result must match the exact `@deepseek-ai/dsh` version in [`package.json`](.
 Start the packaged application without a window and with an isolated Harness home:
 
 ```powershell
-.\target\package\dsh-desktop-rust\dsh-desktop-rust.exe `
+.\target\package\DSH-Desktop\dsh-desktop.exe `
   --no-window `
   --dsh-home target\dsh-package-smoke `
   --workspace . `
   -v
 ```
 
-Verify that the debug output names `target\package\dsh-desktop-rust\runtime\node.exe`, prints `READY`, and records child shutdown.
+Verify that the debug output names `target\package\DSH-Desktop\runtime\node.exe`, prints `READY`, and records child shutdown.
 
 ## 4. Distribute
 
-Distribute the complete `target\package\dsh-desktop-rust\` directory. The executable, `runtime/node.exe`, and `runtime/node_modules/` form one application unit; copying only the executable removes its runtime.
+Distribute the complete `target\package\DSH-Desktop\` directory. The executable, `runtime/node.exe`, and `runtime/node_modules/` form one application unit; copying only the executable removes its runtime.
 
 The recipient needs Windows 10 or 11 with WebView2. A system Node.js installation and network access are not required at application startup.

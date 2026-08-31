@@ -1,8 +1,8 @@
 {
-  "name": "dsh-desktop-rust-runtime",
+  "name": "dsh-desktop-runtime",
   "version": "0.1.0",
   "private": true,
-  "description": "Pinned official DeepSeek Harness runtime for dsh-desktop-rust",
+  "description": "Pinned official DeepSeek Harness runtime for DSH-Desktop",
   "packageManager": "pnpm@11.19.0",
   "engines": {
     "node": "^22.19.0 || >=24.0.0"

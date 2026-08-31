@@ -10,6 +10,60 @@
   const SENTINEL = "\u2063";
   const WIRE_START = '<dsh_annotations version="1">\n';
   const WIRE_END = "\n</dsh_annotations>";
+  const DARK_THEME_ATTRIBUTE = "data-ds-dark-theme";
+  let reportedWindowTheme = "";
+
+  function activeColorScheme() {
+    if (document.body?.hasAttribute(DARK_THEME_ATTRIBUTE)) return "dark";
+
+    const inline = document.documentElement.style.colorScheme
+      .trim()
+      .toLowerCase();
+    if (inline === "dark" || inline === "light") return inline;
+
+    const computed = getComputedStyle(document.documentElement)
+      .colorScheme.trim()
+      .toLowerCase();
+    if (computed === "dark" || computed === "light") return computed;
+
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+
+  function reportWindowTheme() {
+    const theme = activeColorScheme();
+    if (theme === reportedWindowTheme) return;
+    try {
+      if (!window.ipc || typeof window.ipc.postMessage !== "function") return;
+      window.ipc.postMessage(`theme:${theme}`);
+      reportedWindowTheme = theme;
+    } catch (_) {
+      // Theme reporting must never affect the Harness page.
+    }
+  }
+
+  function installWindowThemeSync() {
+    const observer = new MutationObserver(reportWindowTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+    if (document.body) {
+      observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ["class", "style", DARK_THEME_ATTRIBUTE],
+      });
+    }
+
+    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+    if (typeof systemTheme.addEventListener === "function") {
+      systemTheme.addEventListener("change", reportWindowTheme);
+    } else if (typeof systemTheme.addListener === "function") {
+      systemTheme.addListener(reportWindowTheme);
+    }
+    reportWindowTheme();
+  }
 
   function reportDocumentTitle() {
     try {
@@ -877,6 +931,7 @@
   }
 
   function boot() {
+    installWindowThemeSync();
     reportDocumentTitle();
     installAddToChat();
   }

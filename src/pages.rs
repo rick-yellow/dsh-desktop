@@ -6,7 +6,7 @@ pub const SHELL_HTML: &str = r#"<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>DSH Desktop (Rust)</title>
+<title>DSH-Desktop</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -36,7 +36,8 @@ pub const SHELL_HTML: &str = r#"<!doctype html>
   button.primary { background: #2563eb; border-color: #2563eb; }
   button.primary:hover { background: #2f6df1; }
   .log-wrap { margin-top: 26px; text-align: left; }
-  .log-head { color: #9a9aa0; font-size: 12px; margin-bottom: 6px; }
+  .log-head { color: #9a9aa0; font-size: 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .log-head .title { margin-right: auto; }
   .log-head button { padding: 2px 10px; font-size: 11px; }
   pre {
     background: #101012; border: 1px solid #26262b; border-radius: 10px;
@@ -48,13 +49,17 @@ pub const SHELL_HTML: &str = r#"<!doctype html>
 </head>
 <body>
 <div class="shell">
-  <div class="brand">DeepSeek Harness</div>
-  <div class="sub">dsh-desktop-rust shell</div>
+  <div class="brand">DSH-Desktop</div>
+  <div class="sub">Starting DeepSeek Harness</div>
   <div class="spinner" id="spinner"></div>
   <div class="status" id="status">Connecting to shell…</div>
   <div class="detail" id="detail"></div>
   <div class="log-wrap">
-    <div class="log-head">Harness output <button id="toggleLog">hide</button></div>
+    <div class="log-head">
+      <span class="title">Harness output</span>
+      <button id="exportLog">export log</button>
+      <button id="toggleLog">hide</button>
+    </div>
     <pre id="log"></pre>
   </div>
   <div class="actions hidden" id="actions">
@@ -103,6 +108,11 @@ pub const SHELL_HTML: &str = r#"<!doctype html>
   };
   $("quit").onclick = () => { getJson("api/quit"); };
   $("toggleLog").onclick = () => $("log").classList.toggle("hidden");
+  $("exportLog").onclick = () => {
+    // The dialog runs on the main thread; the outcome (path or cancel) is
+    // echoed back into the log area by the next status tick.
+    getJson("api/export-log");
+  };
   tick();
 })();
 </script>

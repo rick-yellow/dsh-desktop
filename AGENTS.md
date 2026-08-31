@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This single-crate Rust 2024 application keeps CLI and `tao`/`wry` event-loop wiring in `src/main.rs`. Preserve existing module boundaries: packaged Harness resolution in `src/runtime.rs`, child-process lifecycle in `src/harness.rs`, shared status in `src/state.rs`, protocol endpoints in `src/protocol.rs`, embedded UI in `src/pages.rs`, and logging in `src/logger.rs`. `package.json` pins the official Harness; `scripts/package.ps1` assembles the standalone folder. Build output belongs in `target/`.
+This single-crate Rust 2024 application keeps CLI and `tao`/`wry` event-loop wiring in `src/main.rs`. Preserve existing module boundaries: packaged Harness resolution in `src/runtime.rs`, child-process lifecycle in `src/harness.rs`, shared status in `src/state.rs`, protocol endpoints in `src/protocol.rs`, embedded UI in `src/pages.rs`, and logging in `src/logger.rs`. `assets/` holds the adaptive application mark and generated icon variants. `package.json` pins the official Harness; `scripts/package.ps1` assembles the standalone folder. Build output belongs in `target/`.
 
 ## Build, Test, and Development Commands
 
@@ -14,6 +14,7 @@ This single-crate Rust 2024 application keeps CLI and `tao`/`wry` event-loop wir
 - `cargo fmt --all -- --check` — verify standard Rust formatting.
 - `cargo clippy --all-targets --all-features -- -D warnings` — reject lint warnings before review.
 - `.\scripts\package.ps1` — build the standalone Windows folder with Node and production dependencies.
+- `.\scripts\generate-icons.ps1` — regenerate theme-aware PNG, ICO, and RGBA assets from the SVG mark.
 
 Development targets recent stable Rust (currently 1.97) and Windows 10/11 with WebView2.
 
@@ -27,7 +28,7 @@ Add unit tests beside the implementation in `#[cfg(test)] mod tests`; reserve `t
 
 ## Commit & Pull Request Guidelines
 
-History contains one scoped, imperative-style commit (`dsh-desktop-rust: Rust desktop wrapper for DeepSeek Harness`). Follow `<scope>: <concise summary>` and keep commits focused. Pull requests should explain the change, list verification commands, link relevant issues, and include screenshots for shell-page or window changes. Call out Windows/runtime assumptions and changes to process termination, ports, tokens, or profile paths.
+History uses scoped, imperative-style commits. Follow `<scope>: <concise summary>` and keep commits focused. Pull requests should explain the change, list verification commands, link relevant issues, and include screenshots for shell-page or window changes. Call out Windows/runtime assumptions and changes to process termination, ports, tokens, or profile paths.
 
 ## Security & Configuration Tips
 

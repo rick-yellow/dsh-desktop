@@ -150,7 +150,7 @@ mod tests {
     impl TempDir {
         fn new(name: &str) -> Self {
             let path = std::env::temp_dir().join(format!(
-                "dsh-desktop-rust-test-{}-{name}-{}",
+                "dsh-desktop-test-{}-{name}-{}",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)

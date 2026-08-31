@@ -61,6 +61,12 @@ cargo clippy --all-targets --all-features -- -D warnings
 
 Unit tests live beside their implementation in `#[cfg(test)] mod tests`. Put public CLI or end-to-end tests under `tests/` when they require the compiled crate boundary. Tests must not depend on a user's Harness profile, fixed local ports, or external network access.
 
+After changing [`assets/dsh-desktop.svg`](../assets/dsh-desktop.svg), regenerate the light and dark PNG, ICO, and runtime RGBA files:
+
+```powershell
+.\scripts\generate-icons.ps1
+```
+
 ## Use an Upstream Checkout
 
 The pinned package is the normal development runtime. To test a built official source checkout, build it with its own documented pnpm workflow and pass its root explicitly:
@@ -70,7 +76,7 @@ git clone https://github.com/deepseek-ai/deepseek-harness.git
 cd deepseek-harness
 pnpm install
 pnpm run build
-cd ..\dsh-desktop-rust
+cd ..\DSH-Desktop
 cargo run -- --harness "..\deepseek-harness"
 ```
 

@@ -1,5 +1,5 @@
-//! dsh-desktop-rust — a native Rust desktop wrapper around the open-source
-//! DeepSeek Harness (DSH) web GUI.
+//! DSH-Desktop — a native desktop shell around the open-source DeepSeek
+//! Harness (DSH) web GUI.
 //!
 //! The binary boots the official published package or a built checkout of
 //! https://github.com/deepseek-ai/deepseek-harness, hosts its web GUI in a
@@ -13,7 +13,7 @@ mod runtime;
 mod state;
 
 use crate::harness::{HarnessCmd, HarnessConfig, HarnessOutcome};
-use crate::protocol::AppEvent;
+use crate::protocol::{AppEvent, WindowTheme};
 use crate::state::AppState;
 use log::{error, info, warn};
 use std::path::PathBuf;
@@ -21,8 +21,20 @@ use std::sync::mpsc;
 use std::thread;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+const APP_NAME: &str = "DSH-Desktop";
 const DEFAULT_HARNESS_PORT: u16 = 3080;
 const WEBVIEW_INIT_SCRIPT: &str = include_str!("webview.js");
+const WINDOW_ICON_SIZE: u32 = 64;
+const LIGHT_WINDOW_ICON_RGBA: &[u8] = include_bytes!("../assets/dsh-desktop-light.rgba");
+const DARK_WINDOW_ICON_RGBA: &[u8] = include_bytes!("../assets/dsh-desktop-dark.rgba");
+
+fn window_icon(theme: WindowTheme) -> Result<tao::window::Icon, tao::window::BadIcon> {
+    let rgba = match theme {
+        WindowTheme::Light => LIGHT_WINDOW_ICON_RGBA,
+        WindowTheme::Dark => DARK_WINDOW_ICON_RGBA,
+    };
+    tao::window::Icon::from_rgba(rgba.to_vec(), WINDOW_ICON_SIZE, WINDOW_ICON_SIZE)
+}
 
 fn select_harness_port(requested: Option<u16>, default_port_available: bool) -> u16 {
     match requested {
@@ -61,10 +73,10 @@ enum Action {
 
 fn usage() -> String {
     format!(
-        "dsh-desktop-rust {VERSION} — a Rust desktop wrapper for DeepSeek Harness
+        "dsh-desktop {VERSION} — DSH-Desktop shell for DeepSeek Harness
 
 USAGE:
-    dsh-desktop-rust [OPTIONS]
+    dsh-desktop [OPTIONS]
 
 OPTIONS:
     --harness <path>   Built official Harness checkout, package install root, or
@@ -136,7 +148,7 @@ fn main() {
             return;
         }
         Action::Version => {
-            println!("dsh-desktop-rust {VERSION}");
+            println!("dsh-desktop {VERSION}");
             return;
         }
         Action::Run(args) => args,
@@ -149,7 +161,7 @@ fn main() {
 fn run(args: Args) -> i32 {
     let data_dir = dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("dsh-desktop-rust");
+        .join(APP_NAME);
     logger::FileLogger::init(&data_dir, args.verbose);
 
     let state = AppState::new();
@@ -301,24 +313,43 @@ fn run_gui(
     use tao::dpi::LogicalSize;
     use tao::event::{Event, WindowEvent};
     use tao::event_loop::{ControlFlow, EventLoopBuilder};
-    use tao::window::WindowBuilder;
+    use tao::window::{Theme, WindowBuilder};
     use wry::{WebContext, WebViewBuilder};
+
+    // Own the data dir so the long-lived event-loop closure (which drives the
+    // log-export dialog) can capture it.
+    let data_dir = data_dir.to_path_buf();
 
     let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
 
-    let window = WindowBuilder::new()
-        .with_title("DSH Desktop (Rust)")
+    let light_icon = window_icon(WindowTheme::Light)?;
+    let dark_icon = window_icon(WindowTheme::Dark)?;
+    let window_builder = WindowBuilder::new()
+        .with_title(APP_NAME)
         .with_inner_size(LogicalSize::new(1380.0, 900.0))
         .with_min_inner_size(LogicalSize::new(900.0, 640.0))
-        .build(&event_loop)?;
+        .with_theme(Some(Theme::Dark))
+        .with_window_icon(Some(dark_icon.clone()));
+    #[cfg(windows)]
+    let window_builder = {
+        use tao::platform::windows::WindowBuilderExtWindows;
+        window_builder.with_taskbar_icon(Some(dark_icon.clone()))
+    };
+    let window = window_builder.build(&event_loop)?;
 
     let mut web_context = WebContext::new(Some(data_dir.join("webview")));
+    let theme_proxy = proxy.clone();
     let webview = WebViewBuilder::new_with_web_context(&mut web_context)
         .with_custom_protocol(
             "dsh-shell".to_string(),
             protocol::handler(state.clone(), proxy.clone()),
         )
+        .with_ipc_handler(move |request| {
+            if let Some(theme) = protocol::parse_theme_message(request.body()) {
+                let _ = theme_proxy.send_event(AppEvent::ThemeChanged { theme });
+            }
+        })
         .with_on_page_load_handler(move |event, url| {
             if matches!(event, wry::PageLoadEvent::Finished) {
                 info!("webview page loaded: {url}");
@@ -385,10 +416,33 @@ fn run_gui(
                     error!("harness failed: {reason}");
                     let _ = webview.load_url("dsh-shell://shell/app");
                 }
+                AppEvent::ThemeChanged { theme } => {
+                    let native_theme = match theme {
+                        WindowTheme::Light => Theme::Light,
+                        WindowTheme::Dark => Theme::Dark,
+                    };
+                    if window.theme() != native_theme {
+                        info!("updating native window theme to {theme:?}");
+                        window.set_theme(Some(native_theme));
+                    }
+                    let themed_icon = match theme {
+                        WindowTheme::Light => light_icon.clone(),
+                        WindowTheme::Dark => dark_icon.clone(),
+                    };
+                    window.set_window_icon(Some(themed_icon.clone()));
+                    #[cfg(windows)]
+                    {
+                        use tao::platform::windows::WindowExtWindows;
+                        window.set_taskbar_icon(Some(themed_icon));
+                    }
+                }
                 AppEvent::RestartRequested => {
                     info!("restart requested");
                     let _ = cmd_tx.send(HarnessCmd::Stop);
                     let _ = cmd_tx.send(HarnessCmd::Start);
+                }
+                AppEvent::ExportLogRequested => {
+                    export_logs(&state, &data_dir, &window);
                 }
                 AppEvent::QuitRequested => {
                     if !quitting {
@@ -411,6 +465,32 @@ fn run_gui(
             _ => {}
         }
     });
+}
+
+/// Export the persisted desktop log via a native save dialog. Runs on the
+/// event-loop thread (rfd needs the UI thread); the outcome is pushed back
+/// into the shared log buffer so the shell page can show it.
+fn export_logs(state: &AppState, data_dir: &std::path::Path, window: &tao::window::Window) {
+    use crate::logger::{export_filename_now, export_log};
+    let dialog = rfd::FileDialog::new()
+        .set_file_name(export_filename_now())
+        .set_parent(window);
+    match dialog.save_file() {
+        Some(target) => match export_log(data_dir, &target) {
+            Ok(bytes) => {
+                info!("exported {bytes} bytes of logs to {}", target.display());
+                state.push_log(format!("[shell] Logs exported to {}", target.display()));
+            }
+            Err(err) => {
+                error!("failed to export logs to {}: {err}", target.display());
+                state.push_log(format!("[shell] Log export failed: {err}"));
+            }
+        },
+        None => {
+            info!("log export cancelled by user");
+            state.push_log("[shell] Log export cancelled.".to_string());
+        }
+    }
 }
 
 /// Synchronous shutdown: ask the harness loop to stop and kill the process
@@ -491,6 +571,23 @@ mod tests {
         assert!(WEBVIEW_INIT_SCRIPT.contains("dshAnnotationDock"));
         assert!(WEBVIEW_INIT_SCRIPT.contains("<dsh_annotations"));
         assert!(!WEBVIEW_INIT_SCRIPT.contains("\"pointerup\""));
+    }
+
+    #[test]
+    fn webview_script_reports_dynamic_theme_changes() {
+        assert!(WEBVIEW_INIT_SCRIPT.contains("data-ds-dark-theme"));
+        assert!(WEBVIEW_INIT_SCRIPT.contains("window.ipc.postMessage"));
+        assert!(WEBVIEW_INIT_SCRIPT.contains("theme:${theme}"));
+        assert!(WEBVIEW_INIT_SCRIPT.contains("MutationObserver"));
+    }
+
+    #[test]
+    fn bundled_window_icons_have_the_expected_rgba_size() {
+        let expected = (WINDOW_ICON_SIZE * WINDOW_ICON_SIZE * 4) as usize;
+        assert_eq!(LIGHT_WINDOW_ICON_RGBA.len(), expected);
+        assert_eq!(DARK_WINDOW_ICON_RGBA.len(), expected);
+        assert!(window_icon(WindowTheme::Light).is_ok());
+        assert!(window_icon(WindowTheme::Dark).is_ok());
     }
 
     #[test]

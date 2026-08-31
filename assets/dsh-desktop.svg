@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="DSH-Desktop">
+  <style>
+    .mark { fill: #145beb; }
+    .node { fill: #18a8ff; }
+    @media (prefers-color-scheme: dark) {
+      .mark { fill: #eaf3ff; }
+      .node { fill: #67a8ff; }
+    }
+  </style>
+  <path class="mark" d="M183 119C252 81 344 105 397 166C453 230 457 325 409 392C360 459 263 480 184 441C110 405 70 328 89 252C100 209 123 170 155 144L193 179C168 200 151 229 144 261C132 315 159 369 207 394C260 421 326 406 361 361C398 314 395 247 356 204C319 163 258 149 207 171Z"/>
+  <path class="mark" d="M177 142C131 128 87 96 75 49C117 51 157 68 181 99C205 68 245 51 286 48C276 95 232 126 190 142Z"/>
+  <path class="mark" d="M103 320C132 263 188 247 232 281C269 310 290 342 326 330C343 324 354 312 356 297C371 331 352 365 320 373C271 385 239 348 205 323C176 302 148 303 130 331Z"/>
+  <circle class="node" cx="280" cy="267" r="27"/>
+</svg>

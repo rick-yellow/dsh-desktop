@@ -1,11 +1,11 @@
 # CLI Reference
 
-This reference defines command-line options, environment variables, runtime discovery, output, and exit behavior for `dsh-desktop-rust`.
+This reference defines command-line options, environment variables, runtime discovery, output, and exit behavior for DSH-Desktop's `dsh-desktop` executable.
 
 ## Usage
 
 ```text
-dsh-desktop-rust [OPTIONS]
+dsh-desktop [OPTIONS]
 ```
 
 | Option | Contract |
