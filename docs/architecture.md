@@ -14,7 +14,7 @@ DSH-Desktop is a single Rust 2024 executable that embeds a native `tao` window a
 | [`src/state.rs`](../src/state.rs) | Store lifecycle phase, launch metadata, and bounded logs shared by worker and UI threads. |
 | [`src/protocol.rs`](../src/protocol.rs) | Serve the internal `dsh-shell://` status and control protocol, including log-export requests. |
 | [`src/pages.rs`](../src/pages.rs) | Provide embedded startup and failure HTML, CSS, and JavaScript, including the log-export button. |
-| [`src/webview.js`](../src/webview.js) | Add desktop-only page behavior, including composer annotations and native-window theme reporting. |
+| [`src/webview.js`](../src/webview.js) | Add desktop-only page behavior, including numbered source excerpts, composer annotations, sent-message rendering, and native-window theme reporting. |
 | [`src/logger.rs`](../src/logger.rs) | Write diagnostic output to stderr and the application log file, and export that file on request. |
 | [`assets/dsh-desktop.svg`](../assets/dsh-desktop.svg) | Define the original adaptive application mark used to generate light and dark window assets. |
 | [`build.rs`](../build.rs) | Compile the default Windows application icon into the executable. |

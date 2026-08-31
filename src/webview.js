@@ -126,6 +126,7 @@
       text,
       rect,
       rects,
+      range: range.cloneRange(),
       sourceKey: start.closest(CHAT_ITEM_SELECTOR)?.dataset.chatFlowKey || "",
     };
   }
@@ -141,6 +142,148 @@
     );
   }
 
+  function sourceMessageRoot(sourceKey) {
+    if (!sourceKey) return null;
+    try {
+      return document.querySelector(
+        `[data-chat-flow-key="${CSS.escape(sourceKey)}"]`,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function collectTextParts(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
+        if (node.parentElement?.closest("[data-dsh-source-num]")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const parts = [];
+    let full = "";
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const value = node.nodeValue || "";
+      parts.push({ node, start: full.length, end: full.length + value.length });
+      full += value;
+    }
+    return { parts, full };
+  }
+
+  function rangeFromExcerpt(root, excerpt, occurrence = 0) {
+    if (!root || !excerpt) return null;
+    const { parts, full } = collectTextParts(root);
+    let index = -1;
+    for (let count = 0; count <= occurrence; count += 1) {
+      index = full.indexOf(excerpt, index + 1);
+      if (index < 0) return null;
+    }
+    const end = index + excerpt.length;
+    const range = document.createRange();
+    let started = false;
+    for (const part of parts) {
+      if (!started && part.start <= index && index < part.end) {
+        range.setStart(part.node, index - part.start);
+        started = true;
+      }
+      if (started && part.start < end && end <= part.end) {
+        range.setEnd(part.node, end - part.start);
+        return range;
+      }
+    }
+    return null;
+  }
+
+  function unwrapSourceMark(mark) {
+    if (!(mark instanceof Element) || mark.closest("[data-dsh-add-to-chat]")) {
+      return;
+    }
+    mark.querySelectorAll("[data-dsh-source-num]").forEach((node) => node.remove());
+    const parent = mark.parentNode;
+    if (!parent) {
+      mark.remove();
+      return;
+    }
+    while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+    parent.removeChild(mark);
+    parent.normalize();
+  }
+
+  function textNodesInRange(range) {
+    const ancestor =
+      range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+        ? range.commonAncestorContainer
+        : range.commonAncestorContainer.parentElement;
+    if (!ancestor) return [];
+    const walker = document.createTreeWalker(ancestor, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
+        if (
+          node.parentElement?.closest(
+            "[data-dsh-source-num], [data-dsh-source-mark], [data-dsh-add-to-chat], [data-dsh-annotation-dock]",
+          )
+        ) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const nodes = [];
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (
+        range.startContainer === node &&
+        range.startOffset === node.nodeValue.length
+      ) {
+        continue;
+      }
+      if (range.endContainer === node && range.endOffset === 0) continue;
+      nodes.push(node);
+    }
+    return nodes;
+  }
+
+  function wrapRangeWithSourceMark(range, annotationId, number) {
+    const nodes = textNodesInRange(range);
+    if (nodes.length === 0) return false;
+    for (let index = nodes.length - 1; index >= 0; index -= 1) {
+      const node = nodes[index];
+      if (!node.isConnected || !node.nodeValue) continue;
+      let start = 0;
+      let end = node.nodeValue.length;
+      if (node === range.startContainer && node.nodeType === Node.TEXT_NODE) {
+        start = Math.min(range.startOffset, node.nodeValue.length);
+      }
+      if (node === range.endContainer && node.nodeType === Node.TEXT_NODE) {
+        end = Math.min(range.endOffset, node.nodeValue.length);
+      }
+      if (end <= start) continue;
+      let target = node;
+      if (start > 0) target = node.splitText(start);
+      if (end - start < target.nodeValue.length) {
+        target.splitText(end - start);
+      }
+      if (!target.parentNode) continue;
+      const mark = document.createElement("span");
+      mark.dataset.dshSourceMark = "";
+      mark.dataset.dshAnnotationId = String(annotationId);
+      target.parentNode.insertBefore(mark, target);
+      mark.appendChild(target);
+      if (index === nodes.length - 1) {
+        const num = document.createElement("span");
+        num.dataset.dshSourceNum = "";
+        num.textContent = String(number);
+        mark.appendChild(num);
+      }
+    }
+    return true;
+  }
+
   function activeComposer() {
     return Array.from(document.querySelectorAll(COMPOSER_SELECTOR)).find(
       (textarea) =>
@@ -151,12 +294,19 @@
     );
   }
 
-  function updateControlledTextarea(textarea, nextValue, focus = true) {
+  function updateControlledTextarea(textarea, nextValue, focus = false) {
     const descriptor = Object.getOwnPropertyDescriptor(
       HTMLTextAreaElement.prototype,
       "value",
     );
     if (!descriptor || !descriptor.set) return false;
+    if (textarea.value === nextValue) {
+      if (focus) {
+        textarea.focus({ preventScroll: true });
+        textarea.setSelectionRange(nextValue.length, nextValue.length);
+      }
+      return true;
+    }
 
     descriptor.set.call(textarea, nextValue);
     let event;
@@ -289,6 +439,32 @@
         font-weight: 600;
       }
       [data-dsh-message-main] { white-space: pre-wrap; word-break: break-word; }
+      [data-dsh-source-mark] {
+        background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #0b84ff) 12%, transparent);
+        border-bottom: 2px solid var(--dsw-alias-state-business-primary, #0b84ff);
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+        border-radius: 2px;
+        color: inherit;
+        padding: 0 0.04em 0.06em;
+      }
+      [data-dsh-source-num] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.15em;
+        height: 1.15em;
+        margin: 0 0.12em 0 0.22em;
+        padding: 0 0.18em;
+        border-bottom: 0;
+        border-radius: 999px;
+        background: var(--dsw-alias-state-business-primary, #0b84ff);
+        color: #fff;
+        font: 700 10px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+        vertical-align: super;
+        user-select: none;
+        pointer-events: none;
+      }
       @media (max-width: 720px) {
         [data-dsh-sent-annotations] { min-width: 0; }
       }
@@ -507,9 +683,89 @@
     let toastTimer = 0;
     let prepared = null;
     let replayingSend = false;
+    let applyingSourceMarks = false;
 
     function annotationLabel(count) {
       return `${count} annotation${count === 1 ? "" : "s"}`;
+    }
+
+    function liveRange(range) {
+      try {
+        return Boolean(
+          range &&
+            range.startContainer?.isConnected &&
+            range.endContainer?.isConnected,
+        );
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function resolveSourceRange(annotation, index) {
+      if (liveRange(annotation.range)) return annotation.range;
+      const root = sourceMessageRoot(annotation.sourceKey);
+      const occurrence = annotations
+        .slice(0, index)
+        .filter(
+          (row) =>
+            row.sourceKey === annotation.sourceKey && row.text === annotation.text,
+        ).length;
+      const range = root
+        ? rangeFromExcerpt(root, annotation.text, occurrence)
+        : null;
+      if (range) annotation.range = range;
+      return range;
+    }
+
+    function sourceMarksFor(id) {
+      return Array.from(
+        document.querySelectorAll(
+          `[data-dsh-source-mark][data-dsh-annotation-id="${id}"]`,
+        ),
+      ).filter((mark) => !mark.closest("[data-dsh-add-to-chat]"));
+    }
+
+    function syncSourceMarks() {
+      if (applyingSourceMarks) return;
+      applyingSourceMarks = true;
+      try {
+        document.querySelectorAll("[data-dsh-source-mark]").forEach((mark) => {
+          if (mark.closest("[data-dsh-add-to-chat]")) return;
+          const id = Number(mark.dataset.dshAnnotationId);
+          if (!annotations.some((annotation) => annotation.id === id)) {
+            unwrapSourceMark(mark);
+          }
+        });
+        annotations.forEach((annotation, index) => {
+          const number = index + 1;
+          const marks = sourceMarksFor(annotation.id);
+          if (marks.length === 0) {
+            const range = resolveSourceRange(annotation, index);
+            if (range) {
+              wrapRangeWithSourceMark(range, annotation.id, number);
+              annotation.range = null;
+            }
+            return;
+          }
+          marks.forEach((mark, markIndex) => {
+            let num = mark.querySelector("[data-dsh-source-num]");
+            if (markIndex === marks.length - 1) {
+              if (!num) {
+                num = document.createElement("span");
+                num.dataset.dshSourceNum = "";
+                mark.appendChild(num);
+              }
+              if (num.textContent !== String(number)) {
+                num.textContent = String(number);
+              }
+            } else if (num) {
+              num.remove();
+            }
+          });
+        });
+      } finally {
+        applyingSourceMarks = false;
+      }
     }
 
     function closeTransient() {
@@ -518,6 +774,8 @@
       badge.dataset.open = "false";
       commentInput.value = "";
       selected = null;
+      const active = shadow.activeElement;
+      if (active && typeof active.blur === "function") active.blur();
     }
 
     function showToast() {
@@ -645,15 +903,16 @@
     function ensureAnnotationOnlyDraft() {
       if (annotations.length === 0 || prepared) return;
       const textarea = activeComposer();
-      if (textarea && visibleDraft(textarea.value) === "") {
-        updateControlledTextarea(textarea, SENTINEL);
-      }
+      if (!textarea || visibleDraft(textarea.value) !== "") return;
+      if (textarea.value === SENTINEL) return;
+      updateControlledTextarea(textarea, SENTINEL, false);
     }
 
     function removeAnnotation(id) {
       annotations = annotations.filter((annotation) => annotation.id !== id);
       dockSignature = "";
       renderDock();
+      syncSourceMarks();
       const textarea = activeComposer();
       if (textarea && annotations.length === 0 && textarea.value === SENTINEL) {
         updateControlledTextarea(textarea, "");
@@ -662,16 +921,20 @@
 
     function commitAnnotation() {
       if (!selected) return;
+      const id = nextAnnotationId++;
+      const range = selected.range;
       annotations.push({
-        id: nextAnnotationId++,
+        id,
         text: selected.text,
         comment: commentInput.value.trim(),
         sourceKey: selected.sourceKey,
+        range,
       });
       window.getSelection()?.removeAllRanges();
       closeTransient();
       dockSignature = "";
       renderDock();
+      syncSourceMarks();
       ensureAnnotationOnlyDraft();
       showToast();
     }
@@ -810,6 +1073,7 @@
               prepared = null;
               dockSignature = "";
               renderDock();
+              syncSourceMarks();
             }
           }
         });
@@ -823,6 +1087,7 @@
         syncQueued = false;
         renderDock();
         decorateMessages();
+        syncSourceMarks();
       });
     }
 

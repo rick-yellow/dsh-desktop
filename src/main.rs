@@ -570,6 +570,7 @@ mod tests {
         assert!(WEBVIEW_INIT_SCRIPT.contains("\"contextmenu\""));
         assert!(WEBVIEW_INIT_SCRIPT.contains("dshAnnotationDock"));
         assert!(WEBVIEW_INIT_SCRIPT.contains("<dsh_annotations"));
+        assert!(WEBVIEW_INIT_SCRIPT.contains("dsh-source-mark"));
         assert!(!WEBVIEW_INIT_SCRIPT.contains("\"pointerup\""));
     }
 
