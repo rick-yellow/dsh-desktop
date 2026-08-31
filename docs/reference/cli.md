@@ -13,7 +13,7 @@ dsh-desktop-rust [OPTIONS]
 | `--harness <path>` | Select a built official checkout, package installation root, or direct `lib/bin.js` file. |
 | `--dsh-home <dir>` | Set the Harness state directory exposed as `DSH_HOME`; defaults to `~/.dsh`. |
 | `--workspace <dir>` | Set the existing working directory exposed to Harness; defaults to the current directory. |
-| `--port <n>` | Request a specific DSH port; defaults to `3080`. Pass `0` for OS assignment. |
+| `--port <n>` | Request a specific DSH port. Without this option, prefer `3080` and fall back to OS assignment when it is occupied; pass `0` to request OS assignment directly. |
 | `--no-window` | Start DSH, report readiness or failure, terminate it, and exit without a WebView. |
 | `-v`, `--verbose` | Enable debug-level diagnostic output. |
 | `-h`, `--help` | Print usage and exit. |
@@ -63,4 +63,4 @@ The child command is equivalent to:
 node <dsh-entry> web --no-open --host 127.0.0.1 --port <port>
 ```
 
-All supported official layouts receive `--no-open`, keeping the GUI inside the desktop WebView. The stable default port preserves the WebView origin and its persisted current-session selection across application launches.
+All supported official layouts receive `--no-open`, keeping the GUI inside the desktop WebView. The preferred default port preserves the WebView origin and its persisted current-session selection across application launches, while automatic OS assignment prevents a second launch from failing when that port is occupied. Explicit nonzero ports remain strict and report conflicts instead of silently changing.

@@ -16,8 +16,9 @@ The application executes local DSH files directly. It does not depend on another
    --no-open --host 127.0.0.1 --port 3080
 ```
 
-Port `3080` is stable by default so WebView2 can restore the selected session
-on the next launch. Pass `--port 0` only when an ephemeral origin is desired.
+Port `3080` is preferred by default so WebView2 can restore the selected session
+on the next launch. If it is already occupied, the wrapper falls back to an
+OS-assigned port for that launch. Pass `--port 0` to request an ephemeral origin.
 
 ## Quick Start
 

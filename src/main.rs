@@ -15,16 +15,32 @@ mod state;
 use crate::harness::{HarnessCmd, HarnessConfig, HarnessOutcome};
 use crate::protocol::AppEvent;
 use crate::state::AppState;
-use log::{error, info};
+use log::{error, info, warn};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_HARNESS_PORT: u16 = 3080;
+const WEBVIEW_INIT_SCRIPT: &str = include_str!("webview.js");
+
+fn select_harness_port(requested: Option<u16>, default_port_available: bool) -> u16 {
+    match requested {
+        Some(port) => port,
+        None if default_port_available => DEFAULT_HARNESS_PORT,
+        None => 0,
+    }
+}
 
 fn harness_port(requested: Option<u16>) -> u16 {
-    requested.unwrap_or(DEFAULT_HARNESS_PORT)
+    match requested {
+        Some(port) => port,
+        None => {
+            let available =
+                std::net::TcpListener::bind(("127.0.0.1", DEFAULT_HARNESS_PORT)).is_ok();
+            select_harness_port(None, available)
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -57,7 +73,8 @@ OPTIONS:
                        (default: ~/.dsh)
     --workspace <dir>  Initial working directory exposed to Harness
                        (default: current directory)
-    --port <n>         Harness port (default: 3080; use 0 for an OS-assigned port)
+    --port <n>         Harness port (default: prefer 3080, fall back if occupied;
+                       use 0 for an OS-assigned port)
     --no-window        Headless mode: boot the Harness, print the ready URL, exit
     -v, --verbose      Verbose logging
     -h, --help         Show this help
@@ -169,14 +186,23 @@ fn run(args: Args) -> i32 {
     info!("DSH_HOME: {}", dsh_home.display());
     info!("workspace: {}", workspace.display());
 
+    let port = harness_port(args.port);
+    if args.port.is_none() && port == 0 {
+        let message = format!(
+            "default port {DEFAULT_HARNESS_PORT} is already in use; using an OS-assigned port"
+        );
+        warn!("{message}");
+        state.push_log(format!("[shell] {message}"));
+    }
+
     let config = HarnessConfig {
         runtime,
         dsh_home,
         workspace,
-        // A stable origin lets WebView2 restore the selected session from
-        // localStorage across launches. Users can still opt into an ephemeral
-        // port explicitly with `--port 0`.
-        port: Some(harness_port(args.port)),
+        // Prefer a stable origin so WebView2 can restore the selected session.
+        // A busy default port falls back to OS assignment; explicit ports,
+        // including `--port 0`, remain under the user's control.
+        port: Some(port),
     };
 
     if args.no_window {
@@ -192,21 +218,36 @@ fn run(args: Args) -> i32 {
     }
 }
 
-/// Harness command loop: waits for commands, boots one lifecycle per Start.
-fn harness_loop(
+/// Harness command loop: waits for commands and runs one lifecycle per Start.
+/// A Stop ends the current lifecycle (`run_once` observes it and kills the
+/// process tree) but keeps the loop alive so a later Start can restart — the
+/// quit and headless paths drop the command channel to exit the loop.
+fn harness_loop<F>(
     config: &HarnessConfig,
     state: &AppState,
     cmd_rx: mpsc::Receiver<HarnessCmd>,
     out_tx: mpsc::Sender<HarnessOutcome>,
-) {
-    while let Ok(cmd) = cmd_rx.recv() {
-        match cmd {
-            HarnessCmd::Start => {
-                harness::run_once(config, state, &cmd_rx, |outcome| {
+    mut run_once: F,
+) where
+    F: FnMut(
+        &HarnessConfig,
+        &AppState,
+        &mpsc::Receiver<HarnessCmd>,
+        &mut dyn FnMut(HarnessOutcome),
+    ),
+{
+    loop {
+        match cmd_rx.recv() {
+            Ok(HarnessCmd::Start) => {
+                let mut report = |outcome| {
                     let _ = out_tx.send(outcome);
-                });
+                };
+                run_once(config, state, &cmd_rx, &mut report);
             }
-            HarnessCmd::Stop => break,
+            // run_once handles the Stop for the lifecycle it is running; here a
+            // Stop only means "don't start a new one yet", so just keep waiting.
+            Ok(HarnessCmd::Stop) => {}
+            Err(_) => break,
         }
     }
 }
@@ -216,7 +257,17 @@ fn run_headless(config: &HarnessConfig, state: AppState) -> i32 {
     let (out_tx, out_rx) = mpsc::channel::<HarnessOutcome>();
     let config = config.clone();
     let state = state.clone();
-    let handle = thread::spawn(move || harness_loop(&config, &state, cmd_rx, out_tx));
+    let handle = thread::spawn(move || {
+        harness_loop(
+            &config,
+            &state,
+            cmd_rx,
+            out_tx,
+            |config, state, cmd_rx, on_outcome| {
+                harness::run_once(config, state, cmd_rx, on_outcome);
+            },
+        );
+    });
 
     let _ = cmd_tx.send(HarnessCmd::Start);
     let ready_url = match out_rx.recv() {
@@ -273,19 +324,9 @@ fn run_gui(
                 info!("webview page loaded: {url}");
             }
         })
-        .with_initialization_script(
-            // Runs in every page (shell + Harness GUI). Reports the rendered
-            // document title back through the shell protocol so the log proves
-            // the GUI actually painted. Uses the absolute workaround URL wry
-            // registers for the dsh-shell:// custom protocol.
-            r#"
-            window.addEventListener("DOMContentLoaded", function () {
-              try {
-                fetch("http://dsh-shell.shell/api/console?msg=" + encodeURIComponent(document.title));
-              } catch (e) {}
-            });
-            "#,
-        )
+        // Runs in the shell and Harness pages. Besides reporting successful
+        // rendering, the embedded script adds the selection-to-composer flow.
+        .with_initialization_script(WEBVIEW_INIT_SCRIPT)
         .with_url("dsh-shell://shell/app")
         .build(&window)?;
 
@@ -293,8 +334,17 @@ fn run_gui(
     let (out_tx, out_rx) = mpsc::channel::<HarnessOutcome>();
     let config = config.clone();
     let state_for_harness = state.clone();
-    let _harness_thread =
-        thread::spawn(move || harness_loop(&config, &state_for_harness, cmd_rx, out_tx));
+    let _harness_thread = thread::spawn(move || {
+        harness_loop(
+            &config,
+            &state_for_harness,
+            cmd_rx,
+            out_tx,
+            |config, state, cmd_rx, on_outcome| {
+                harness::run_once(config, state, cmd_rx, on_outcome);
+            },
+        );
+    });
 
     // Forward harness outcomes to the UI thread via the event-loop proxy.
     let _outcome_thread = {
@@ -392,14 +442,83 @@ fn shutdown(state: &AppState, cmd_tx: &mpsc::Sender<HarnessCmd>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::OsString;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn test_config() -> HarnessConfig {
+        HarnessConfig {
+            runtime: crate::runtime::HarnessRuntime {
+                program: PathBuf::from("node"),
+                prefix_args: vec![OsString::from("fake-bin.js")],
+                supports_no_open: true,
+                startup_timeout_secs: 1,
+                description: "test runtime".to_string(),
+            },
+            dsh_home: PathBuf::from("test-home"),
+            workspace: PathBuf::from("."),
+            port: Some(0),
+        }
+    }
 
     #[test]
     fn stable_port_is_the_default() {
-        assert_eq!(harness_port(None), 3080);
+        assert_eq!(select_harness_port(None, true), DEFAULT_HARNESS_PORT);
+    }
+
+    #[test]
+    fn occupied_default_port_falls_back_to_os_assignment() {
+        assert_eq!(select_harness_port(None, false), 0);
     }
 
     #[test]
     fn explicit_ephemeral_port_is_preserved() {
-        assert_eq!(harness_port(Some(0)), 0);
+        assert_eq!(select_harness_port(Some(0), false), 0);
+    }
+
+    #[test]
+    fn explicit_port_is_preserved_even_when_occupied() {
+        assert_eq!(select_harness_port(Some(3080), false), 3080);
+    }
+
+    #[test]
+    fn webview_script_contains_add_to_chat_integration_points() {
+        assert!(WEBVIEW_INIT_SCRIPT.contains("Add to chat"));
+        assert!(WEBVIEW_INIT_SCRIPT.contains("[data-chat-flow]"));
+        assert!(WEBVIEW_INIT_SCRIPT.contains("[data-composer-card]"));
+        assert!(WEBVIEW_INIT_SCRIPT.contains("InputEvent"));
+        assert!(WEBVIEW_INIT_SCRIPT.contains("\"contextmenu\""));
+        assert!(WEBVIEW_INIT_SCRIPT.contains("dshAnnotationDock"));
+        assert!(WEBVIEW_INIT_SCRIPT.contains("<dsh_annotations"));
+        assert!(!WEBVIEW_INIT_SCRIPT.contains("\"pointerup\""));
+    }
+
+    #[test]
+    fn harness_loop_stays_alive_after_stop_and_restarts() {
+        let config = test_config();
+        let state = AppState::new();
+        let (cmd_tx, cmd_rx) = mpsc::channel::<HarnessCmd>();
+        let (out_tx, _out_rx) = mpsc::channel::<HarnessOutcome>();
+        let starts = Arc::new(AtomicUsize::new(0));
+        let starts_in_loop = starts.clone();
+        let handle = thread::spawn(move || {
+            harness_loop(
+                &config,
+                &state,
+                cmd_rx,
+                out_tx,
+                |_config, _state, _cmd_rx, _out| {
+                    starts_in_loop.fetch_add(1, Ordering::SeqCst);
+                },
+            );
+        });
+        // Regression: a Stop while the loop is idle must not end the loop, so a
+        // later Start (the Retry path after a failure) can boot a new lifecycle.
+        cmd_tx.send(HarnessCmd::Stop).unwrap();
+        cmd_tx.send(HarnessCmd::Start).unwrap();
+        cmd_tx.send(HarnessCmd::Start).unwrap();
+        drop(cmd_tx);
+        handle.join().unwrap();
+        assert_eq!(starts.load(Ordering::SeqCst), 2);
     }
 }

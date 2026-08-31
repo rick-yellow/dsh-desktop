@@ -14,6 +14,7 @@ This reference maps the application composition, startup lifecycle, ownership bo
 | [`src/state.rs`](../src/state.rs) | Store lifecycle phase, launch metadata, and bounded logs shared by worker and UI threads. |
 | [`src/protocol.rs`](../src/protocol.rs) | Serve the internal `dsh-shell://` status and control protocol. |
 | [`src/pages.rs`](../src/pages.rs) | Provide embedded startup and failure HTML, CSS, and JavaScript. |
+| [`src/webview.js`](../src/webview.js) | Add desktop-only WebView behavior: right-click selected chat text to create ChatGPT-style composer annotations and render them in sent messages. |
 | [`src/logger.rs`](../src/logger.rs) | Write diagnostic output to stderr and the application log file. |
 
 ## Startup Lifecycle
@@ -26,7 +27,7 @@ This reference maps the application composition, startup lifecycle, ownership bo
 
 Channels separate lifecycle work from the GUI event loop: `HarnessCmd` carries start and stop requests, while `HarnessOutcome` carries readiness, failure, and exit results.
 
-The GUI defaults to port `3080` so WebView2 keeps the same origin and can restore its current-session selection from local storage. An explicit `--port 0` opts into an OS-assigned port and therefore a fresh browser origin.
+The GUI prefers port `3080` so WebView2 keeps the same origin and can restore its current-session selection from local storage. When the default port is occupied, the wrapper falls back to OS assignment for that launch; an explicit port remains strict, and an explicit `--port 0` always requests a fresh browser origin.
 
 ## Runtime Distribution
 

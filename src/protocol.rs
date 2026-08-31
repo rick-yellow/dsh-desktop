@@ -60,7 +60,7 @@ fn percent_decode(input: &str) -> String {
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
-        if i + 2 < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
             let hex = &input[i + 1..i + 3];
             if let Ok(byte) = u8::from_str_radix(hex, 16) {
                 out.push(byte);
@@ -130,5 +130,38 @@ pub fn handler(
             }
             _ => text_response(404, "not found"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn percent_decode_expands_escapes() {
+        assert_eq!(percent_decode("hello%20world"), "hello world");
+        assert_eq!(percent_decode("a%2Fb"), "a/b");
+        assert_eq!(percent_decode("%25"), "%");
+    }
+
+    #[test]
+    fn percent_decode_does_not_touch_literal_text() {
+        // Regression: a bare character followed by hex-looking digits must not
+        // be treated as an escape ("hello42" previously became "hellB").
+        assert_eq!(percent_decode("hello42"), "hello42");
+        assert_eq!(percent_decode("no escapes here"), "no escapes here");
+    }
+
+    #[test]
+    fn percent_decode_preserves_malformed_escapes() {
+        assert_eq!(percent_decode("100%zz"), "100%zz");
+        assert_eq!(percent_decode("trailing%"), "trailing%");
+        assert_eq!(percent_decode("%"), "%");
+        assert_eq!(percent_decode("%1"), "%1");
+    }
+
+    #[test]
+    fn percent_decode_empty_input() {
+        assert_eq!(percent_decode(""), "");
     }
 }
