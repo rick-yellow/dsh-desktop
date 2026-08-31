@@ -1,0 +1,14 @@
+{
+  "files": {
+    "README.md": 900,
+    "AGENTS.md": 600,
+    "docs/AGENTS.md": 600,
+    "docs/README.md": 350,
+    "docs/architecture.md": 1000,
+    "docs/development.md": 900,
+    "docs/reference/cli.md": 700,
+    "docs/cookbook/package-windows.md": 700,
+    "docs/decisions/README.md": 350,
+    "docs/postmortem/README.md": 350
+  }
+}
