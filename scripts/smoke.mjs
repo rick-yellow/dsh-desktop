@@ -1,7 +1,7 @@
-// End-to-end smoke test: boot the pinned `dsh web` profile with every plugin
-// in packages/ enabled, then assert the browser roster lists and serves each.
+// End-to-end smoke test: boot the pinned `dsh web` profile with the plugin
+// (this package) enabled, then assert the browser roster lists and serves it.
 //
-// Mirrors a real installation: each package is staged into the profile
+// Mirrors a real installation: the package is staged into the profile
 // module-resolution fallback ($DSH_HOME/profiles/node_modules), and its
 // roster row arrives as a `--patch` overlay. Requires `pnpm install` first
 // (the pinned @deepseek-ai/dsh devDependency is the harness under test).
@@ -13,7 +13,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -23,38 +22,27 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dshEntry = join(repoRoot, "node_modules", "@deepseek-ai", "dsh", "lib", "bin.js");
-const packagesDir = join(repoRoot, "packages");
+const manifest = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
+const name = manifest.name;
 
-const plugins = readdirSync(packagesDir)
-  .map((entry) => join(packagesDir, entry))
-  .filter((dir) => existsSync(join(dir, "package.json")))
-  .map((dir) => ({ dir, manifest: JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) }));
-if (plugins.length === 0) {
-  console.error("smoke: FAIL — no plugins under packages/");
+// The package under test is this repo root itself; stage its built halves.
+if (!existsSync(join(repoRoot, "lib", "client.js"))) {
+  console.error("smoke: FAIL — lib/client.js not found; run pnpm run check first");
   process.exit(1);
 }
 
-const home = mkdtempSync(join(tmpdir(), "dsh-awsome-plugins-smoke-"));
-for (const { dir, manifest } of plugins) {
-  const staged = join(home, "profiles", "node_modules", manifest.name);
-  copyTree(dir, staged, manifest);
+const home = mkdtempSync(join(tmpdir(), "dsh-awsome-plugin-smoke-"));
+const staged = join(home, "profiles", "node_modules", name);
+mkdirSync(staged, { recursive: true });
+copyFileSync(join(repoRoot, "package.json"), join(staged, "package.json"));
+for (const rel of [manifest.main ?? "lib/index.js", manifest.exports?.["./client"]].filter(Boolean)) {
+  const target = join(staged, rel);
+  mkdirSync(dirname(target), { recursive: true });
+  copyFileSync(join(repoRoot, rel), target);
 }
-const overlay = join(home, "smoke.patch.yml");
-const rows = plugins
-  .map(({ manifest }, index) => `    - id: smoke-${index}\n      name: ${manifest.name}`)
-  .join("\n");
-writeFileSync(overlay, `- insert:\n${rows}\n`);
 
-function copyTree(dir, staged, manifest) {
-  mkdirSync(staged, { recursive: true });
-  copyFileSync(join(dir, "package.json"), join(staged, "package.json"));
-  const files = [manifest.main ?? "lib/index.js", manifest.exports?.["./client"]].filter(Boolean);
-  for (const rel of files) {
-    const target = join(staged, rel);
-    mkdirSync(dirname(target), { recursive: true });
-    copyFileSync(join(dir, rel), target);
-  }
-}
+const overlay = join(home, "smoke.patch.yml");
+writeFileSync(overlay, `- insert:\n    - id: smoke\n      name: ${name}\n`);
 
 const child = spawn(
   process.execPath,
@@ -95,20 +83,18 @@ child.stdout.on("data", async (chunk) => {
   const url = new URL(match[1]);
   try {
     const index = await (await fetch(url)).text();
-    for (const { manifest } of plugins) {
-      if (!index.includes(manifest.name)) {
-        return fail(`boot manifest does not list ${manifest.name}`);
-      }
-      const bundle = await fetch(new URL(`/plugins/${manifest.name}/client.js`, url));
-      const body = await bundle.text();
-      if (bundle.status !== 200) {
-        return fail(`${manifest.name} client bundle returned ${bundle.status}`);
-      }
-      if (!body.includes(`id: "${manifest.name}"`)) {
-        return fail(`${manifest.name} served bundle does not register itself`);
-      }
-      console.log(`smoke: OK — ${manifest.name} listed in __DSH_BOOT__ and served (${body.length} bytes)`);
+    if (!index.includes(name)) {
+      return fail(`boot manifest does not list ${name}`);
     }
+    const bundle = await fetch(new URL(`/plugins/${name}/client.js`, url));
+    const body = await bundle.text();
+    if (bundle.status !== 200) {
+      return fail(`${name} client bundle returned ${bundle.status}`);
+    }
+    if (!body.includes(`id: "${name}"`)) {
+      return fail(`${name} served bundle does not register itself`);
+    }
+    console.log(`smoke: OK — ${name} listed in __DSH_BOOT__ and served (${body.length} bytes)`);
     cleanup(0);
   } catch (error) {
     fail(String(error));

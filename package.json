@@ -1,9 +1,27 @@
 {
-  "name": "dsh-awsome-plugins",
-  "description": "A collection of small DeepSeek Harness (dsh) plugins",
+  "name": "dsh-awsome-plugin",
+  "description": "DeepSeek Harness web UI plugin: a single dsh client bundle hosting multiple features (add-to-chat, and more to come)",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js"
+  ],
+  "dsh": {
+    "client": {
+      "platform": "web"
+    }
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness"
+  ],
   "scripts": {
     "check": "node scripts/check.mjs",
     "smoke": "node scripts/smoke.mjs"
