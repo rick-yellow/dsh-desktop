@@ -33,6 +33,26 @@ dsh --profile web --patch ./try.patch.yml
 
 （`try.patch.yml` 里放同样的 insert 行。）
 
+### 从本仓库安装到 DSH Desktop（本地包）
+
+`dsh plugin` 是 pnpm 的转发器（在 profile 目录里执行 `pnpm add <spec>`），
+所以**未发布到 npm registry 的本地包必须用 `file:`/`link:` 路径 spec 安装**，
+裸包名会去 registry 拉取并 404 失败：
+
+```bash
+dsh plugin --profile web add "file:C:\WorkSpace\dsh-desktop\packages\dsh-annotations"
+```
+
+随后同样在 `$DSH_HOME/profiles/web/cordis.patch.yml` 追加 insert 行（见上），
+并重启 DSH Desktop / `dsh web`。装的是 `file:` 引用，改源码后重启即生效。
+安装时会出现 `declares no dsh.bundle` 的 warning——预期行为：该插件声明的是
+`dsh.client`（前端插件）而非 bundle，走 patch insert 启用，不进 bundles 层。
+
+> **`dsh` 不在 PATH 时**：DSH Desktop 自带 CLI 位于
+> `"C:\Users\dunext\AppData\Local\Programs\DSH Desktop\resources\dsh-runtime\node_modules\.bin\dsh"`，
+> 可将其加入用户级 PATH（`$env:Path` → 环境变量 → 用户变量 `Path`），
+> 或用完整路径调用（Windows 下 `.bin\dsh.CMD`）。
+
 ## 插件的形态
 
 每个包都是一个标准的 `dsh.client` 双面插件：

@@ -359,7 +359,7 @@ window.__ModuleLoader__.load({
           padding: 0 12px;
           border: 1px solid var(--dsw-alias-border-l2, rgba(127,127,127,.24));
           border-radius: 999px;
-          background: color-mix(in srgb, var(--dsw-alias-label-primary, #111) 6%, transparent);
+          background: var(--dsw-specific-selector, color-mix(in srgb, var(--dsw-alias-label-primary, #111) 6%, transparent));
           color: inherit;
           font: 600 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
           cursor: pointer;
@@ -371,7 +371,7 @@ window.__ModuleLoader__.load({
           padding: 10px 12px;
           border-left: 3px solid var(--dsw-alias-state-business-primary, #0b84ff);
           border-radius: 6px 12px 12px 6px;
-          background: color-mix(in srgb, var(--dsw-alias-label-primary, #111) 5%, transparent);
+          background: var(--dsw-alias-bg-layer-1, color-mix(in srgb, var(--dsw-alias-label-primary, #111) 5%, transparent));
         }
         [data-dsh-sent-details][hidden] { display: none; }
         [data-dsh-sent-quote] {
@@ -437,12 +437,13 @@ window.__ModuleLoader__.load({
       shadow.innerHTML = `
         <style>
           :host {
-            --accent: var(--dsw-alias-state-business-primary, #0b84ff);
-            --surface: color-mix(in srgb, var(--dsw-alias-bg-base, #fff) 88%, var(--dsw-alias-label-primary, #111) 12%);
+            --accent: var(--dsw-alias-button-info-fill, var(--dsw-alias-state-business-primary, #4d78ef));
+            --accent-hover: var(--dsw-alias-button-info-hover, var(--accent));
+            --surface: var(--dsw-specific-menu, var(--dsw-alias-bg-layer-1, var(--dsw-alias-bg-base, #fff)));
             --text: var(--dsw-alias-label-primary, #171717);
             --muted: var(--dsw-alias-label-tertiary, #777);
             --border: var(--dsw-alias-border-l2, rgba(127,127,127,.22));
-            color-scheme: light dark;
+            color-scheme: inherit;
           }
           * { box-sizing: border-box; }
           .menu, .comment, .badge, .toast { position: fixed; display: none; }
@@ -454,7 +455,7 @@ window.__ModuleLoader__.load({
             border: 1px solid var(--border);
             border-radius: 12px;
             background: var(--surface);
-            box-shadow: 0 12px 36px rgba(0,0,0,.24);
+            box-shadow: var(--dsw-shadow-lv2, 0 12px 36px rgba(0,0,0,.24));
             pointer-events: auto;
           }
           .menu button {
@@ -483,7 +484,7 @@ window.__ModuleLoader__.load({
             border: 1px solid var(--border);
             border-radius: 28px;
             background: var(--surface);
-            box-shadow: 0 12px 36px rgba(0,0,0,.22);
+            box-shadow: var(--dsw-shadow-lv2, 0 12px 36px rgba(0,0,0,.22));
             pointer-events: auto;
           }
           .comment input {
@@ -492,6 +493,7 @@ window.__ModuleLoader__.load({
             border: 0;
             outline: 0;
             background: transparent;
+            caret-color: var(--accent);
             color: var(--text);
             font: 15px/22px system-ui, -apple-system, "Segoe UI", sans-serif;
           }
@@ -507,6 +509,12 @@ window.__ModuleLoader__.load({
             background: var(--accent);
             color: white;
             cursor: pointer;
+          }
+          .comment button:hover { background: var(--accent-hover); }
+          .comment button:focus-visible,
+          .menu button:focus-visible {
+            outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+            outline-offset: 2px;
           }
           .badge {
             width: 26px;
@@ -527,8 +535,8 @@ window.__ModuleLoader__.load({
             transform: translateX(-50%);
             padding: 8px 12px;
             border-radius: 999px;
-            background: color-mix(in srgb, var(--text) 90%, transparent);
-            color: var(--surface);
+            background: var(--dsw-alias-tooltip-bg, color-mix(in srgb, var(--text) 90%, transparent));
+            color: var(--dsw-alias-label-primary-inverted, var(--surface));
             font: 600 13px/1.2 system-ui, sans-serif;
             box-shadow: 0 6px 20px rgba(0,0,0,.2);
             pointer-events: none;
@@ -570,42 +578,130 @@ window.__ModuleLoader__.load({
       const dockShadow = dockHost.attachShadow({ mode: "open" });
       dockShadow.innerHTML = `
         <style>
-          :host { display: block; color: var(--dsw-alias-label-primary, inherit); }
+          :host {
+            --accent: var(--dsw-alias-button-info-fill, var(--dsw-alias-state-business-primary, #4d78ef));
+            --border: var(--dsw-alias-border-l2, rgba(127,127,127,.2));
+            --divider: var(--dsw-alias-border-l1, rgba(127,127,127,.12));
+            --muted: var(--dsw-alias-label-tertiary, #81858c);
+            --panel-surface: var(--dsw-specific-menu, var(--dsw-alias-bg-layer-1, var(--dsw-alias-bg-base, #fff)));
+            --summary-surface: var(--dsw-specific-selector, var(--dsw-specific-input-major, var(--dsw-alias-bg-base, #fff)));
+            display: block;
+            color: var(--dsw-alias-label-primary, #171717);
+            color-scheme: inherit;
+          }
           :host([hidden]) { display: none; }
           * { box-sizing: border-box; }
-          .dock { padding: 0 12px 8px; font: 14px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; }
+          .dock {
+            position: relative;
+            padding: 0 12px 8px;
+            font: 14px/1.45 var(--dsw-font-family, system-ui, -apple-system, "Segoe UI", sans-serif);
+          }
           .summary {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            min-height: 34px;
-            padding: 0 12px;
-            border: 1px solid var(--dsw-alias-border-l2, rgba(127,127,127,.24));
+            gap: 6px;
+            min-height: 32px;
+            padding: 0 11px;
+            border: 1px solid var(--border);
             border-radius: 999px;
-            background: color-mix(in srgb, var(--dsw-alias-label-primary, #111) 6%, transparent);
+            background: var(--summary-surface);
             color: inherit;
             font: inherit;
             font-weight: 600;
             cursor: pointer;
+            transition: border-color .12s ease, background-color .12s ease;
           }
-          .summary svg { color: var(--dsw-alias-label-tertiary, #777); }
+          .summary:hover {
+            background: var(--dsw-alias-interactive-bg-hover-solid, var(--summary-surface));
+          }
+          .summary:focus-visible {
+            outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+            outline-offset: 2px;
+          }
+          .summary[aria-expanded="true"] { border-color: var(--dsw-alias-border-l3, var(--border)); }
+          .summary svg { color: var(--muted); }
           .panel {
-            display: grid;
-            gap: 4px;
-            margin-top: 7px;
-            padding: 5px;
-            border: 1px solid var(--dsw-alias-border-l1, rgba(127,127,127,.15));
-            border-radius: 12px;
-            background: color-mix(in srgb, var(--dsw-alias-label-primary, #111) 4%, transparent);
+            position: absolute;
+            z-index: 20;
+            bottom: calc(100% + 7px);
+            left: 12px;
+            display: block;
+            width: min(480px, calc(100vw - 24px));
+            max-height: min(440px, 62vh);
+            overflow: hidden auto;
+            overscroll-behavior: contain;
+            border: 1px solid var(--divider);
+            border-radius: 16px;
+            background: var(--panel-surface);
+            box-shadow: var(--dsw-shadow-lv2, 0 10px 30px rgba(0,0,0,.12));
           }
           .panel[hidden] { display: none; }
-          .row { display: grid; grid-template-columns: 24px minmax(0,1fr) 28px; align-items: center; gap: 8px; min-height: 42px; padding: 4px 5px; border-radius: 8px; }
-          .number { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 999px; background: var(--dsw-alias-state-business-primary, #0b84ff); color: white; font-size: 12px; font-weight: 700; }
+          .row {
+            display: grid;
+            grid-template-columns: 24px minmax(0, 1fr) 28px;
+            align-items: start;
+            gap: 10px;
+            min-height: 70px;
+            padding: 14px 14px 14px 18px;
+          }
+          .row + .row { border-top: 1px solid var(--divider); }
+          .number {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 20px;
+            text-align: left;
+            user-select: none;
+          }
           .copy { min-width: 0; }
-          .quote { overflow: hidden; color: var(--dsw-alias-label-secondary, inherit); text-overflow: ellipsis; white-space: nowrap; }
-          .note { overflow: hidden; margin-top: 2px; color: var(--dsw-alias-label-tertiary, #777); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-          .remove { display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 999px; background: transparent; color: var(--dsw-alias-label-tertiary, #777); font-size: 19px; cursor: pointer; }
-          .remove:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+          .field + .field { margin-top: 10px; }
+          .field-label {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 20px;
+          }
+          .quote,
+          .note {
+            overflow-wrap: anywhere;
+            color: var(--dsw-alias-label-primary, inherit);
+            font-size: 14px;
+            line-height: 22px;
+            white-space: pre-wrap;
+          }
+          .remove {
+            display: grid;
+            width: 28px;
+            height: 28px;
+            margin-top: -4px;
+            place-items: center;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: var(--muted);
+            font-size: 19px;
+            opacity: 0;
+            cursor: pointer;
+            transition: opacity .12s ease, background-color .12s ease;
+          }
+          .row:hover .remove,
+          .row:focus-within .remove { opacity: 1; }
+          .remove:hover { background: var(--dsw-alias-interactive-bg-hover, color-mix(in srgb, currentColor 10%, transparent)); }
+          .remove:focus-visible {
+            opacity: 1;
+            outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+            outline-offset: 1px;
+          }
+          @media (max-width: 560px) {
+            .panel {
+              left: 8px;
+              width: calc(100% - 16px);
+              max-height: min(360px, 58vh);
+            }
+            .row { padding-inline: 14px 10px; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .summary,
+            .remove { transition: none; }
+          }
         </style>
         <div class="dock">
           <button class="summary" type="button" aria-expanded="false">
@@ -632,7 +728,7 @@ window.__ModuleLoader__.load({
       let applyingSourceMarks = false;
 
       function annotationLabel(count) {
-        return `${count} annotation${count === 1 ? "" : "s"}`;
+        return `${count} 条注释`;
       }
 
       function liveRange(range) {
@@ -826,19 +922,31 @@ window.__ModuleLoader__.load({
           row.className = "row";
           const number = document.createElement("span");
           number.className = "number";
-          number.textContent = String(index + 1);
+          number.textContent = `${index + 1}。`;
           const copy = document.createElement("div");
           copy.className = "copy";
+          const quoteField = document.createElement("div");
+          quoteField.className = "field";
+          const quoteLabel = document.createElement("div");
+          quoteLabel.className = "field-label";
+          quoteLabel.textContent = "所选文本：";
           const quote = document.createElement("div");
           quote.className = "quote";
           quote.textContent = annotation.text;
           quote.title = annotation.text;
-          copy.appendChild(quote);
+          quoteField.append(quoteLabel, quote);
+          copy.appendChild(quoteField);
           if (annotation.comment) {
+            const noteField = document.createElement("div");
+            noteField.className = "field";
+            const noteLabel = document.createElement("div");
+            noteLabel.className = "field-label";
+            noteLabel.textContent = "用户评论：";
             const note = document.createElement("div");
             note.className = "note";
             note.textContent = annotation.comment;
-            copy.appendChild(note);
+            noteField.append(noteLabel, note);
+            copy.appendChild(noteField);
           }
           const remove = document.createElement("button");
           remove.className = "remove";
@@ -881,6 +989,7 @@ window.__ModuleLoader__.load({
           sourceKey: selected.sourceKey,
           range,
         });
+        dockExpanded = false;
         window.getSelection()?.removeAllRanges();
         closeTransient();
         dockSignature = "";
