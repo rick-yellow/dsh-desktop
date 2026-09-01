@@ -13,6 +13,9 @@ const problems = [];
 if (manifest.dsh?.client?.platform !== "web") {
   problems.push("missing dsh.client.platform=web declaration");
 }
+if (!manifest.dsh?.client?.inject?.includes("@deepseek-ai/dsh-client-connection")) {
+  problems.push("missing dsh.client.inject dependency on dsh-client-connection");
+}
 const clientRel = manifest.exports?.["./client"];
 if (typeof clientRel !== "string") {
   problems.push('missing exports["./client"]');

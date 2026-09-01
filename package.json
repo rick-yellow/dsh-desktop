@@ -1,6 +1,6 @@
 {
   "name": "dsh-awsome-plugin",
-  "description": "DeepSeek Harness web UI plugin: a single dsh client bundle hosting multiple features (add-to-chat, and more to come)",
+  "description": "DeepSeek Harness web UI plugin for quick references, model capabilities, and archived session management",
   "version": "0.1.0",
   "type": "module",
   "main": "lib/index.js",
@@ -15,6 +15,9 @@
   ],
   "dsh": {
     "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-connection"
+      ],
       "platform": "web"
     }
   },
@@ -24,6 +27,7 @@
   ],
   "scripts": {
     "check": "node scripts/check.mjs",
+    "test:delete-session": "node scripts/delete-session.test.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "license": "MIT",
