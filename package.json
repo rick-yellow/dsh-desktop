@@ -1,13 +1,19 @@
 {
-  "name": "dsh-desktop-runtime",
+  "name": "dsh-awsome-plugins",
+  "description": "A collection of small DeepSeek Harness (dsh) plugins",
   "version": "0.1.0",
   "private": true,
-  "description": "Pinned official DeepSeek Harness runtime for DSH-Desktop",
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@deepseek-ai/dsh": "0.1.1-rc.2"
+  },
   "packageManager": "pnpm@11.19.0",
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
-  },
-  "dependencies": {
-    "@deepseek-ai/dsh": "0.1.1-rc.2"
   }
 }

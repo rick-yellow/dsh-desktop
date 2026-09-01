@@ -1,0 +1,26 @@
+{
+  "name": "dsh-annotations",
+  "description": "DeepSeek Harness web UI plugin: select chat message text, add it to the composer with numbered source marks, and serialize the annotations with the sent message",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js"
+  ],
+  "dsh": {
+    "client": {
+      "platform": "web"
+    }
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness"
+  ],
+  "license": "MIT"
+}

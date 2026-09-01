@@ -7,10 +7,12 @@ settings:
 importers:
 
   .:
-    dependencies:
+    devDependencies:
       '@deepseek-ai/dsh':
         specifier: 0.1.1-rc.2
         version: 0.1.1-rc.2(38621d491dcd790048312df1ae4fb441)
+
+  packages/dsh-annotations: {}
 
 packages:
 
